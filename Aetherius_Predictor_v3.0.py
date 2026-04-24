@@ -654,4 +654,327 @@ class AetheriusPredictor:
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🚀 *ENTRE AGORA!*"
         )
-        enviar_alerta(mensagem, SOM_ENTRADA, f"🚀 ENTRADA NA 7
+        enviar_alerta(mensagem, SOM_ENTRADA, f"🚀 ENTRADA NA 7ª VELA! Rodada {rodada}")
+        self.alertas_enviados += 1
+        self.ultima_aposta_alertada = datetime.now()
+    
+    def _verificar_alertas_rodadas(self, rodada: int):
+        """Contagem regressiva por rodadas - COM NÚMERO DA RODADA"""
+        faltam = max(0, self.media_ciclo - self.rodadas_desde_alta)
+        score, nivel = self._calcular_confianca()
+        
+        ultimas = list(self.historico)[-10:] if len(self.historico) >= 10 else list(self.historico)
+        soma = sum(ultimas)
+        agora = datetime.now().strftime('%H:%M:%S')
+        
+        # Nível 1: Faltam ~3 rodadas
+        if 2.5 <= faltam <= 3.5 and not self.alertas.get('3', False):
+            self.alertas['3'] = True
+            mensagem = (
+                f"⏳ *AETHERIUS — CONTAGEM REGRESSIVA*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🆔 *Rodada atual: #{rodada}*\n"
+                f"🔔 *Faltam aproximadamente 3 rodadas*\n"
+                f"🕐 Horário: *{agora}*\n"
+                f"📊 Ciclo: *{self.rodadas_desde_alta} / {self.media_ciclo:.1f}*\n"
+                f"💰 Soma últimas 10: *{soma:.2f}*\n"
+                f"🧠 Confiança: *{nivel} ({score}%)*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👀 _Fique de olho. Janela se aproximando._"
+            )
+            enviar_alerta(mensagem, SOM_AVISO, f"⏳ Faltam 3 rodadas! Rodada {rodada}")
+        
+        # Nível 2: Faltam ~1 rodada
+        elif 0.5 <= faltam <= 1.5 and not self.alertas.get('1', False):
+            self.alertas['1'] = True
+            mensagem = (
+                f"🚨 *AETHERIUS — ATENÇÃO MÁXIMA!*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🆔 *Rodada atual: #{rodada}*\n"
+                f"⚡ *Faltam aproximadamente 1 rodada!*\n"
+                f"🕐 Horário: *{agora}*\n"
+                f"📊 Ciclo: *{self.rodadas_desde_alta} / {self.media_ciclo:.1f}*\n"
+                f"💰 Soma últimas 10: *{soma:.2f}*\n"
+                f"🧠 Confiança: *{nivel} ({score}%)*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 *Prepare seu valor de entrada AGORA!*"
+            )
+            enviar_alerta(mensagem, SOM_URGENTE, f"🚨 Faltam 1 rodada! Rodada {rodada}")
+        
+        # Nível 3: ENTRE AGORA
+        elif faltam <= 0.5 and not self.alertas.get('agora', False):
+            self.alertas['agora'] = True
+            mensagem = (
+                f"🚀 *AETHERIUS — ENTRE AGORA!* 🚀\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"✅ *JANELA DE ENTRADA ATIVA*\n"
+                f"🆔 *Rodada atual: #{rodada}*\n"
+                f"🕐 *Horário exato: {agora}*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 Alvo: *2.00x*\n"
+                f"🛡️ Proteção: *1.50x*\n"
+                f"📊 Soma últimas 10: *{soma:.2f}*\n"
+                f"🔄 Rodadas no ciclo: *{self.rodadas_desde_alta}*\n"
+                f"📈 Ciclo médio: *{self.media_ciclo:.1f} rodadas*\n"
+                f"🧠 Confiança: *{nivel} ({score}%)*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🔔 *FAÇA O CASH OUT EM 2.00x!*"
+            )
+            enviar_alerta(mensagem, SOM_ENTRADA, f"🚀 ENTRE AGORA! Rodada {rodada}")
+            self.alertas_enviados += 1
+            self.ultima_aposta_alertada = datetime.now()
+    
+    def gerar_relatorio(self) -> str:
+        """Gera relatório de performance"""
+        c = self.conn.cursor()
+        c.execute("SELECT COUNT(*) FROM rodadas")
+        total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM rodadas WHERE valor >= 2.0")
+        altas = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM rodadas WHERE valor >= 100")
+        rosas = c.fetchone()[0]
+        
+        taxa_acerto = (self.acertos / max(1, self.alertas_enviados)) * 100 if self.alertas_enviados > 0 else 0
+        
+        # Horários mais quentes
+        horarios_top = sorted(self.analisador_horario.horarios_quentes.items(), key=lambda x: x[1], reverse=True)[:3]
+        horarios_str = " | ".join([f"{h:02d}h:{s}%" for h, s in horarios_top])
+        
+        # Última rodada
+        ultima_rodada = self.ultima_rodada_numero or "N/A"
+        ultimo_valor = self.ultimo_multiplicador or "N/A"
+        if isinstance(ultimo_valor, float):
+            ultimo_valor = f"{ultimo_valor:.2f}x"
+        
+        return (
+            f"📊 *RELATÓRIO AETHERIUS v3.0*\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📈 *Estatísticas*\n"
+            f"├─ Total rodadas: *{total}*\n"
+            f"├─ Velas ≥2.00x: *{altas} ({altas/max(1,total)*100:.1f}%)*\n"
+            f"├─ Velas ≥100x (ROSAS): *{rosas}*\n"
+            f"├─ Ciclo médio: *{self.media_ciclo:.1f} rodadas*\n"
+            f"├─ Minutagem média: *{self.media_minutos:.1f} min*\n"
+            f"└─ Alertas enviados: *{self.alertas_enviados}*\n"
+            f"\n🎯 *Performance*\n"
+            f"├─ Acertos: *{self.acertos}*\n"
+            f"├─ Erros: *{self.erros}*\n"
+            f"└─ Taxa de acerto: *{taxa_acerto:.1f}%*\n"
+            f"\n⏰ *Horários mais quentes*\n"
+            f"└─ {horarios_str}\n"
+            f"\n🧠 *Aprendizado*\n"
+            f"├─ Padrões conhecidos: *{len(self.reconhecedor.padroes)}*\n"
+            f"├─ Padrões aprendidos: *{len(self.reconhecedor.padroes_aprendidos)}*\n"
+            f"└─ Erros memorizados: *{len(self.aprendizado_erro.penalti_padroes)}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🆔 *Última rodada: #{ultima_rodada}* → {ultimo_valor}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"_🤖 Bot rodando 24/7 | Aprendizado contínuo ativo_"
+        )
+
+# ============================================================
+# SCRAPER - Captura em Tempo Real (Selenium + Chrome)
+# ============================================================
+def criar_driver():
+    """Cria e configura o driver do Chrome headless"""
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    
+    opts = Options()
+    opts.add_argument('--headless')
+    opts.add_argument('--no-sandbox')
+    opts.add_argument('--disable-dev-shm-usage')
+    opts.add_argument('--disable-gpu')
+    opts.add_argument('--window-size=1920,1080')
+    opts.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36')
+    opts.add_argument('--disable-blink-features=AutomationControlled')
+    opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+    opts.add_experimental_option('useAutomationExtension', False)
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=opts)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
+    log.info("🌐 Chrome headless criado com sucesso")
+    return driver
+
+def fazer_login(driver):
+    """Faz login automaticamente no site Betou"""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    log.info("🔐 Fazendo login na Betou...")
+    driver.get('https://betou.bet.br')
+    
+    try:
+        wait = WebDriverWait(driver, 20)
+        
+        # Tenta encontrar o botão de login
+        botoes = driver.find_elements(By.XPATH, "//*[contains(text(),'Login') or contains(text(),'Entrar')]")
+        if botoes:
+            botoes[0].click()
+            time.sleep(2)
+        
+        # Campo email
+        email_input = wait.until(EC.presence_of_element_located(
+            (By.XPATH, "//input[@type='email' or @name='email' or @placeholder[contains(.,'mail')]]")
+        ))
+        email_input.clear()
+        email_input.send_keys(BETOU_EMAIL)
+        
+        # Campo senha
+        senha_input = driver.find_element(By.XPATH, "//input[@type='password']")
+        senha_input.clear()
+        senha_input.send_keys(BETOU_SENHA)
+        
+        # Botão submit
+        submit_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
+        submit_btn.click()
+        
+        time.sleep(4)
+        log.info("✅ Login realizado com sucesso!")
+        return True
+        
+    except Exception as e:
+        log.warning(f"⚠️ Login falhou: {e}")
+        return False
+
+def capturar_dados(driver):
+    """Captura multiplicador e número da rodada em TEMPO REAL"""
+    from selenium.webdriver.common.by import By
+    
+    mult = None
+    rodada = None
+    
+    try:
+        # 1. CAPTURA DO MULTIPLICADOR
+        # Tenta diferentes seletores (para compatibilidade com diferentes versões)
+        seletores_mult = [
+            '[appcoloredmultiplier]',
+            '.bubble-multiplier',
+            '.multiplier',
+            '[class*="multiplier"]',
+            '.crash-number',
+            '.current-multiplier'
+        ]
+        
+        for seletor in seletores_mult:
+            elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
+            for el in elementos:
+                texto = el.text.strip()
+                if texto:
+                    m = re.search(r'(\d+\.?\d*)', texto)
+                    if m:
+                        mult = float(m.group(1))
+                        break
+            if mult:
+                break
+        
+        # 2. CAPTURA DO NÚMERO DA RODADA
+        seletores_rodada = [
+            '.text-uppercase',
+            '.round-number',
+            '[class*="round"]',
+            '.game-round'
+        ]
+        
+        for seletor in seletores_rodada:
+            spans = driver.find_elements(By.CSS_SELECTOR, seletor)
+            for el in spans:
+                texto = el.text
+                m = re.search(r'Rodada\s+(\d+)', texto, re.IGNORECASE)
+                if m:
+                    rodada = int(m.group(1))
+                    break
+            if rodada:
+                break
+        
+        if mult:
+            log.debug(f"📡 Capturado: Rodada #{rodada} = {mult:.2f}x")
+        
+    except Exception as e:
+        log.debug(f"Captura erro: {e}")
+    
+    return mult, rodada
+
+# ============================================================
+# MAIN - Loop Principal
+# ============================================================
+def main():
+    log.info("=" * 60)
+    log.info("   🌟 AETHERIUS PREDICTOR v3.0 🌟")
+    log.info("   ✅ Captura em tempo real (multiplicador + rodada)")
+    log.info("   ✅ Número da rodada em TODOS os alertas")
+    log.info("   ✅ Reconhecimento de padrões | Minutagem | Aprendizado")
+    log.info("=" * 60)
+    
+    # Mensagem de boas-vindas no Telegram
+    enviar_texto(
+        "🌟 *AETHERIUS PREDICTOR v3.0 ONLINE* 🌟\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ *NOVO:* Número da rodada em TODOS os alertas!\n"
+        "✅ Reconhecimento de padrões complexos\n"
+        "✅ Aprendizado por erro\n"
+        "✅ Análise de horários pagantes\n"
+        "✅ Minutagem (4-5 min entre roxas)\n"
+        "✅ Contagem regressiva por rodadas\n"
+        "✅ Padrão de espelhamento\n"
+        "✅ Análise de coluna\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🕐 *Bot ativo e monitorando o Aviator...*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    
+    predictor = AetheriusPredictor()
+    driver = None
+    tentativas = 0
+    ultima_rodada = None
+    
+    while True:
+        try:
+            if driver is None:
+                driver = criar_driver()
+                fazer_login(driver)
+                driver.get(BETOU_URL)
+                log.info("🎮 Aguardando Aviator carregar...")
+                time.sleep(8)
+                tentativas = 0
+            
+            mult, rodada = capturar_dados(driver)
+            
+            if mult is not None and rodada != ultima_rodada:
+                predictor.processar_vela(mult, rodada)
+                ultima_rodada = rodada
+                
+                # Envia relatório a cada 50 rodadas
+                if len(predictor.historico) % 50 == 0 and len(predictor.historico) > 0:
+                    enviar_texto(predictor.gerar_relatorio())
+            
+            time.sleep(2)
+            
+        except KeyboardInterrupt:
+            log.info("🛑 Encerrado pelo usuário")
+            enviar_texto(predictor.gerar_relatorio())
+            enviar_texto("🛑 *Bot encerrado manualmente*")
+            break
+        except Exception as e:
+            tentativas += 1
+            log.error(f"❌ Erro (tentativa {tentativas}): {e}")
+            try:
+                driver.quit()
+            except:
+                pass
+            driver = None
+            
+            if tentativas >= 5:
+                enviar_texto("⚠️ *AETHERIUS — ERRO CRÍTICO*\nBot reiniciando automaticamente em 30s...")
+                tentativas = 0
+                time.sleep(30)
+            else:
+                time.sleep(10)
+
+if __name__ == "__main__":
+    main()
