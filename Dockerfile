@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+# Instala dependências do sistema e Chromium
 RUN apt-get update && apt-get install -y \
     wget gnupg unzip curl \
     libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 \
@@ -17,6 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY Aetherius_Predictor_v3.0.py .
 
+# Volume para persistência do banco de dados
 VOLUME ["/app/data"]
 
+# Comando para executar o bot
 CMD ["python", "-u", "Aetherius_Predictor_v3.0.py"]
