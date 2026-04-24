@@ -1,54 +1,43 @@
-aetherius-predictor/
-├── Aetherius_Predictor_v3.0.py   # Código principal do bot
-├── requirements.txt                # Dependências Python
-├── Dockerfile                      # Configuração do container
-├── README.md                       # Este arquivo
-└── data/                           # Volume para banco de dados (criado automaticamente)
-    └── aetherius_brain.db          # Banco de dados SQLite (persistente)
+# 🚀 AETHERIUS PREDICTOR v3.0
 
+### Bot de Análise Inteligente para o Aviator (Spribe) | Betou
 
-# 🚀 Aetherius Predictor v3.0
+[![Versão](https://img.shields.io/badge/versão-3.0-blue)](https://github.com/)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED)](https://docker.com)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4)](https://telegram.org)
 
-## 🆔 NOVIDADE: NÚMERO DA RODADA EM TODOS OS ALERTAS!
+---
 
-Cada sinal enviado no Telegram informará EXATAMENTE a rodada atual.
+## 📋 ÍNDICE
 
-### Exemplo de alerta:
+1. [O que o bot faz](#-o-que-o-bot-faz)
+2. [Funcionalidades Completas](#-funcionalidades-completas)
+3. [Estrutura do Projeto](#-estrutura-do-projeto)
+4. [Pré-requisitos](#-pré-requisitos)
+5. [Instalação Local](#-instalação-local)
+6. [Deploy na Oracle Cloud](#-deploy-na-oracle-cloud)
+7. [Configuração do Telegram](#-configuração-do-telegram)
+8. [Comandos Úteis](#-comandos-úteis)
+9. [Exemplo de Alertas](#-exemplo-de-alertas-no-telegram)
+10. [Limitações e Avisos](#-limitações-e-avisos)
 
-# 🚀 Aetherius Predictor v3.0 - Inteligência Completa
+---
 
-## 🧠 O que este bot faz?
+## 🎯 O QUE O BOT FAZ
 
-| Módulo | Função |
-|--------|--------|
-| **Reconhecimento de Padrões** | Detecta sequências como 1.00x→1.05x→1.03x que precedem ROSA |
-| **Aprendizado por Erro** | Se o bot errou, ele guarda o padrão e não repete |
-| **Análise de Horário** | Sabe que 00h-04h pagam mais (seus dados) |
-| **Minutagem** | Conta 4-5 minutos entre velas roxas |
-| **Padrão de Espelhamento** | Reconhece sequências que se repetem |
-| **Análise de Coluna** | Verifica quais colunas do histórico estão quentes |
-| **Contagem por Rodadas** | Alerta: 3 rodadas → 1 rodada → ENTRE AGORA |
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Captura em tempo real | ✅ SIM | Captura multiplicador e rodada a cada 2 segundos |
+| Número da rodada | ✅ SIM | Mostra em TODOS os alertas |
+| Reconhecimento de padrões | ✅ SIM | Detecta sequências que precedem ROSA |
+| Contagem regressiva | ✅ SIM | 3 rodadas → 1 rodada → ENTRE AGORA |
+| Minutagem | ✅ SIM | Alerta baseado em 4-5 minutos entre velas roxas |
+| Aprendizado por erro | ✅ SIM | Guarda padrões que erraram e evita repetir |
+| Análise de horários | ✅ SIM | Identifica horários com maior chance de pagamento |
+| Padrão de espelhamento | ✅ SIM | Reconhece sequências que se repetem |
+| Análise de coluna | ✅ SIM | Verifica quais colunas do histórico estão quentes |
+| Rodagem 24/7 | ✅ SIM | Docker com restart automático |
 
-## ☁️ Deploy na Oracle Cloud
+---
 
-```bash
-# 1. Instalar Docker
-sudo apt update && sudo apt install docker.io -y
-
-# 2. Clonar
-git clone https://github.com/SEU_USUARIO/aetherius-v3.git
-cd aetherius-v3
-
-# 3. Construir
-sudo docker build -t aetherius-v3 .
-
-# 4. Rodar
-sudo docker run -d \
-  --name aetherius-v3 \
-  --restart unless-stopped \
-  -e TELEGRAM_TOKEN=SEU_TOKEN \
-  -e TELEGRAM_CHAT_ID=SEU_CHAT_ID \
-  -e BETOU_EMAIL=marcosduarte356@gmail.com \
-  -e BETOU_SENHA=amordedeus123@ \
-  -v ~/aetherius-data:/app/data \
-  aetherius-v3
+## 📁 ESTRUTURA DO PROJETO
