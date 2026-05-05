@@ -28,12 +28,12 @@ print(f"✅ Bot configurado com token: {TELEGRAM_BOT_TOKEN[:20]}...")
 print(f"✅ Chat ID: {TELEGRAM_CHAT_ID}")
 
 # ============================================
-# FUNÇÃO PARA ENVIAR MENSAGENS
+# FUNÇÃO PARA ENVIAR MENSAGENS COM FORMATAÇÃO HTML
 # ============================================
 import requests
 
-def send_telegram_message(message):
-    """Envia mensagem para o Telegram com tratamento de erro"""
+def send_telegram_message(message, parse_mode='HTML'):
+    """Envia mensagem para o Telegram com formatação HTML"""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Telegram não configurado. Mensagem não enviada.")
         return
@@ -42,7 +42,7 @@ def send_telegram_message(message):
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
-        "parse_mode": "Markdown"
+        "parse_mode": parse_mode
     }
     try:
         response = requests.post(url, json=payload, timeout=10)
@@ -199,7 +199,7 @@ class AetheriusML:
 ml_engine = AetheriusML()
 
 # ============================================
-# MODO SNIPER
+# MODO SNIPER COM CORES DIFERENTES
 # ============================================
 class SniperMode:
     def __init__(self):
@@ -215,7 +215,15 @@ class SniperMode:
         self.window_minutes = window_minutes
         self.alertas_cronometro = {5: False, 2: False, 1: False}
         self.sinal_enviado = False
-        send_telegram_message(f"🎯 *MODO SNIPER ATIVADO!*\n⏱️ Janela de {window_minutes} minutos.\n📈 Confiança esperada: {self.get_confidence()}%")
+        
+        # MENSAGEM VERDE para ativação
+        msg = (
+            "🟢🟢🟢 <b>MODO SNIPER ATIVADO!</b> 🟢🟢🟢\n"
+            f"⏱️ <b>Janela de {window_minutes} minutos</b>\n"
+            f"📈 <b>Confiança esperada: {self.get_confidence()}%</b>\n"
+            "🟢🟢🟢 <b>PREPARE-SE!</b> 🟢🟢🟢"
+        )
+        send_telegram_message(msg, parse_mode='HTML')
     
     def get_confidence(self):
         if self.window_minutes == 3:
@@ -232,16 +240,22 @@ class SniperMode:
         elapsed = datetime.now() - self.trigger_time
         minutos_faltando = self.window_minutes - (elapsed.total_seconds() / 60)
         
+        # ALERTAS DE CRONÔMETRO (AMARELO)
         for min_alerta in [5, 2, 1]:
             if min_alerta <= self.window_minutes:
                 if (min_alerta - 0.2) < minutos_faltando <= min_alerta and not self.alertas_cronometro.get(min_alerta, False):
                     proxima_janela = datetime.now() + timedelta(minutes=minutos_faltando)
-                    send_telegram_message(
-                        f"⏳ *AETHERIUS PREDICTOR:* Janela de oportunidade em {min_alerta} minutos.\n"
-                        f"⏰ Previsão: {proxima_janela.strftime('%H:%M')}"
+                    msg = (
+                        "🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡\n"
+                        f"⏰ <b>Janela em {min_alerta} MINUTOS!</b> ⏰\n"
+                        f"📅 <b>Previsão:</b> {proxima_janela.strftime('%H:%M:%S')}\n"
+                        f"🎯 <b>Prepare o cashout!</b>\n"
+                        "🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡🟡"
                     )
+                    send_telegram_message(msg, parse_mode='HTML')
                     self.alertas_cronometro[min_alerta] = True
         
+        # SINAL DE ENTRADA (VERMELHO + DESTAQUE MÁXIMO)
         if -0.2 < minutos_faltando <= 0.1 and not self.sinal_enviado:
             soma_velas = calcular_soma_velas_recentes()
             confianca = self.get_confidence()
@@ -256,22 +270,32 @@ class SniperMode:
                 alvo = 1.80
                 protecao = 1.40
             
+            # MENSAGEM VERMELHA ESTRIDENTE COM EMOJIS DE FOGO
             msg = (
-                f"🚀 *AETHERIUS PREDICTOR: ENTRADA CONFIRMADA!* 🚀\n"
-                f"------------------------------------------\n"
-                f"🎯 *Alvo Sugerido:* {alvo}x\n"
-                f"🛡️ *Proteção:* {protecao}x\n"
-                f"📊 *Soma de Velas Recente:* {soma_velas:.2f}\n"
-                f"💎 *Confiança do ML:* {confianca}%\n"
-                f"🆔 *Número da Rodada:* {numero_rodada}"
+                "🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴\n"
+                "🔥🚀🔥 <b>ENTRADA CONFIRMADA! HORA DE APOSTAR!</b> 🔥🚀🔥\n"
+                "🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴\n\n"
+                f"🎯 <b>ALVO SUGERIDO:</b> <code>{alvo}x</code> 🎯\n"
+                f"🛡️ <b>PROTEÇÃO:</b> <code>{protecao}x</code>\n\n"
+                f"📊 <b>Soma de Velas Recente:</b> <code>{soma_velas:.2f}</code>\n"
+                f"💎 <b>Confiança do ML:</b> <code>{confianca}%</code>\n"
+                f"🆔 <b>Número da Rodada:</b> <code>{numero_rodada}</code>\n\n"
+                "⚠️ <b>⏰ ENTRAR AGORA! ÚLTIMOS 30 SEGUNDOS!</b> ⚠️\n"
+                "🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴"
             )
-            send_telegram_message(msg)
+            send_telegram_message(msg, parse_mode='HTML')
             self.sinal_enviado = True
             return True
         
+        # MODO SNIPER FINALIZADO (AZUL)
         if minutos_faltando < -0.5:
             self.active = False
-            send_telegram_message(f"✅ *MODO SNIPER FINALIZADO*\n⏱️ Janela de {self.window_minutes} minutos encerrada.")
+            msg = (
+                "🔵🔵🔵 <b>MODO SNIPER FINALIZADO</b> 🔵🔵🔵\n"
+                f"⏱️ Janela de {self.window_minutes} minutos encerrada.\n"
+                "🔵🔵🔵 <b>AGUARDANDO PRÓXIMA VELA GIGANTE</b> 🔵🔵🔵"
+            )
+            send_telegram_message(msg, parse_mode='HTML')
         
         return None
 
@@ -302,11 +326,14 @@ def analyze_and_predict():
         else:
             window = 10
         
-        send_telegram_message(
-            f"🚨 *VELA GIGANTE DETECTADA!*\n"
-            f"📈 Multiplicador: {current_multiplier}x\n"
-            f"🎯 Ativando MODO SNIPER para {window} minutos"
+        # MENSAGEM VERDE DESTACADA
+        msg = (
+            "🟢🟢🟢 <b>VELA GIGANTE DETECTADA!</b> 🟢🟢🟢\n"
+            f"📈 <b>Multiplicador: {current_multiplier}x</b>\n"
+            f"🎯 <b>Ativando MODO SNIPER para {window} minutos</b>\n"
+            "🟢🟢🟢 <b>PREPARE-SE PARA ENTRADA!</b> 🟢🟢🟢"
         )
+        send_telegram_message(msg, parse_mode='HTML')
         sniper.activate(window)
         return
     
@@ -323,15 +350,15 @@ def analyze_and_predict():
         protecao = round(1.40 + (confidence - 0.70), 2)
         
         msg = (
-            f"📊 *AETHERIUS PREDICTOR - Análise Preditiva*\n"
-            f"------------------------------------------\n"
-            f"🎯 *Alvo Sugerido:* {alvo}x\n"
-            f"🛡️ *Proteção:* {protecao}x\n"
-            f"📊 *Soma de Velas Recente:* {soma_velas:.2f}\n"
-            f"💎 *Confiança do ML:* {int(confidence*100)}%\n"
-            f"🆔 *Número da Rodada:* {numero_rodada}"
+            "📊 <b>AETHERIUS PREDICTOR - Análise Preditiva</b>\n"
+            "------------------------------------------\n"
+            f"🎯 <b>Alvo Sugerido:</b> {alvo}x\n"
+            f"🛡️ <b>Proteção:</b> {protecao}x\n"
+            f"📊 <b>Soma de Velas Recente:</b> {soma_velas:.2f}\n"
+            f"💎 <b>Confiança do ML:</b> {int(confidence*100)}%\n"
+            f"🆔 <b>Número da Rodada:</b> {numero_rodada}"
         )
-        send_telegram_message(msg)
+        send_telegram_message(msg, parse_mode='HTML')
 
 # ============================================
 # SERVIDOR HEALTH CHECK PARA O RENDER
@@ -355,6 +382,24 @@ def run_health_server():
     server.serve_forever()
 
 # ============================================
+# MENSAGEM DE BOAS-VINDAS COLORIDA
+# ============================================
+def send_welcome_message():
+    msg = (
+        "🎰🎰🎰 <b>AETHERIUS PREDICTOR ML v4.0</b> 🎰🎰🎰\n\n"
+        "✅ <b>Bot iniciado com sucesso no Render!</b>\n\n"
+        "🎯 <b>Modo Sniper ativado</b> (Velas >50x)\n"
+        "📊 <b>Machine Learning:</b> Markov + Bayes + Entropia\n"
+        "⏰ <b>Monitorando rodadas 24/7</b>\n\n"
+        "🟢 <b>VELHA GIGANTE</b> = Ativa sniper\n"
+        "🟡 <b>ALERTA AMARELO</b> = Prepare-se\n"
+        "🔴 <b>ALERTA VERMELHO</b> = ENTRAR AGORA!\n"
+        "🔵 <b>ALERTA AZUL</b> = Janela encerrada\n\n"
+        "<b>Boa sorte! 🍀</b>"
+    )
+    send_telegram_message(msg, parse_mode='HTML')
+
+# ============================================
 # MAIN
 # ============================================
 def main():
@@ -363,8 +408,8 @@ def main():
     print(f"📊 Configurações carregadas")
     print("⏳ Aguardando rodadas...\n")
     
-    # Envia mensagem de boas-vindas
-    send_telegram_message("✅ *AETHERIUS PREDICTOR ML v4.0*\nBot iniciado com sucesso no Render!\n\n🎯 Modo Sniper ativado\n📊 Machine Learning: Markov + Bayes\n⏰ Monitorando rodadas 24/7")
+    # Envia mensagem de boas-vindas colorida
+    send_welcome_message()
     
     while True:
         analyze_and_predict()
