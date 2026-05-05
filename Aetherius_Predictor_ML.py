@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 # --- Configurações do Bot (simuladas) ---
 TELEGRAM_BOT_TOKEN = '8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8'  # Substitua pelo seu token real
-TELEGRAM_CHAT_ID = 'seu_chat_id_aqui'  # Substitua pelo seu chat ID real
+TELEGRAM_CHAT_ID = '8795312239'  # Substitua pelo seu chat ID real
 
 # Carregar configurações do cérebro (simulado)
 def load_brain_config(config_path=\'aetherius_brain_config.json\'):
