@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import random
@@ -6,30 +7,55 @@ import math
 from datetime import datetime, timedelta
 from collections import deque
 
-# --- Configurações do Bot ---
-TELEGRAM_BOT_TOKEN = '8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8'
-TELEGRAM_CHAT_ID = '8795312239'
+# ============================================
+# CONFIGURAÇÕES DO TELEGRAM (DO RENDER)
+# ============================================
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 
-# Carregar configurações do cérebro
-def load_brain_config(config_path='aetherius_brain_config.json'):
+# VALIDAÇÃO DAS CREDENCIAIS
+if not TELEGRAM_BOT_TOKEN:
+    print("❌ ERRO FATAL: TELEGRAM_BOT_TOKEN não configurado!")
+    print("Configure a variável de ambiente no Render.")
+    TELEGRAM_BOT_TOKEN = '8795312239:AAF-yVGNQpq90Hs5fAGstj4Wve2-IwrtKBk'
+
+if not TELEGRAM_CHAT_ID:
+    print("❌ ERRO FATAL: TELEGRAM_CHAT_ID não configurado!")
+    print("Configure a variável de ambiente no Render.")
+    TELEGRAM_CHAT_ID = '8795312239'
+
+print(f"✅ Bot configurado com token: {TELEGRAM_BOT_TOKEN[:20]}...")
+print(f"✅ Chat ID: {TELEGRAM_CHAT_ID}")
+
+# ============================================
+# FUNÇÃO PARA ENVIAR MENSAGENS
+# ============================================
+import requests
+
+def send_telegram_message(message):
+    """Envia mensagem para o Telegram com tratamento de erro"""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ Telegram não configurado. Mensagem não enviada.")
+        return
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
     try:
-        with open(config_path, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {
-            "estatisticas_gerais": {"total_rodadas": 0, "percentual_roxas": 0.0, "percentual_rosas": 0.0},
-            "intervalos_medios": {"roxa_segundos": 0.0, "rosa_segundos": 0.0},
-            "melhores_horas": [],
-            "padrao_100x": 1,
-            "high_multiplier_threshold": 50.0,
-            "sniper_mode_confidence_3min": 85,
-            "sniper_mode_confidence_5min": 80,
-            "sniper_mode_confidence_10min": 75
-        }
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            print(f"[OK] Mensagem enviada para o Telegram")
+        else:
+            print(f"[ERRO] Telegram: {response.text}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao enviar: {e}")
 
-config = load_brain_config()
-
-# --- Banco de dados SQLite para histórico de rodadas ---
+# ============================================
+# BANCO DE DADOS SQLITE
+# ============================================
 class Database:
     def __init__(self):
         self.conn = sqlite3.connect('aetherius_history.db', check_same_thread=False)
@@ -61,10 +87,12 @@ class Database:
 
 db = Database()
 
-# --- Simulação do contador de rodadas ---
+# ============================================
+# CONTADOR DE RODADAS
+# ============================================
 class RodadaCounter:
     def __init__(self):
-        self.current_round = 47897589  # Número da rodada inicial
+        self.current_round = 47897589
 
     def next_round(self):
         self.current_round += random.randint(1, 5)
@@ -72,32 +100,38 @@ class RodadaCounter:
 
 rodada_counter = RodadaCounter()
 
-# --- Função para enviar mensagem ao Telegram (REAL) ---
-import requests
-
-def send_telegram_message(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
+# ============================================
+# CARREGAR CONFIGURAÇÕES DO CÉREBRO
+# ============================================
+def load_brain_config(config_path='aetherius_brain_config.json'):
     try:
-        response = requests.post(url, json=payload, timeout=5)
-        if response.status_code == 200:
-            print(f"[OK] Mensagem enviada: {message[:50]}...")
-        else:
-            print(f"[ERRO] Telegram: {response.text}")
-    except Exception as e:
-        print(f"[ERRO] Falha ao enviar: {e}")
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "estatisticas_gerais": {"total_rodadas": 0, "percentual_roxas": 0.0, "percentual_rosas": 0.0},
+            "intervalos_medios": {"roxa_segundos": 0.0, "rosa_segundos": 0.0},
+            "melhores_horas": [],
+            "padrao_100x": 1,
+            "high_multiplier_threshold": 50.0,
+            "sniper_mode_confidence_3min": 85,
+            "sniper_mode_confidence_5min": 80,
+            "sniper_mode_confidence_10min": 75
+        }
 
-# --- Cálculo da Soma de Velas Recentes ---
+config = load_brain_config()
+
+# ============================================
+# CÁLCULO DA SOMA DE VELAS RECENTES
+# ============================================
 def calcular_soma_velas_recentes():
     rodadas = db.get_ultimas_rodadas(10)
-    soma = sum(r[0] for r in rodadas if r[0] < 50)  # ignora outliers >50x
+    soma = sum(r[0] for r in rodadas if r[0] < 50)
     return round(soma, 2)
 
-# --- Lógica de Machine Learning (Markov + Bayes) ---
+# ============================================
+# MACHINE LEARNING (MARKOV + BAYES)
+# ============================================
 class AetheriusML:
     def __init__(self):
         self.historico_multipliers = deque(maxlen=30)
@@ -105,7 +139,6 @@ class AetheriusML:
         self.erros = 0
 
     def markov_probability(self, ultimos_estados):
-        # Simula cadeia de Markov ordem 1/2/3
         if len(ultimos_estados) < 2:
             return 0.65
         padrao = tuple(ultimos_estados[-3:])
@@ -117,7 +150,6 @@ class AetheriusML:
         return padroes_conhecidos.get(padrao, 0.65)
 
     def bayesian_inference(self, ultimos_multipliers):
-        # Inferência Bayesiana simplificada
         media = sum(ultimos_multipliers) / len(ultimos_multipliers) if ultimos_multipliers else 1.5
         if media < 1.8:
             return 0.80
@@ -127,7 +159,6 @@ class AetheriusML:
             return 0.60
 
     def shannon_entropy(self, sequencia):
-        # Mede o caos das últimas rodadas
         if not sequencia:
             return 0.5
         freq = {}
@@ -143,7 +174,6 @@ class AetheriusML:
         if not rodadas_recentes:
             return 0.70
         
-        # Classifica estados
         estados = []
         for mult, tipo in rodadas_recentes[:10]:
             if mult < 1.5:
@@ -154,14 +184,11 @@ class AetheriusML:
                 estados.append('alto')
         
         markov_score = self.markov_probability(estados)
-        
         multipliers = [m for m, _ in rodadas_recentes[:10]]
         bayes_score = self.bayesian_inference(multipliers)
-        
         entropy = self.shannon_entropy(estados)
         confidence = (markov_score * 0.35 + bayes_score * 0.25 + entropy * 0.20 + 0.20)
         
-        # Calibração de viés
         total_predicoes = self.acertos + self.erros
         if total_predicoes > 10:
             bias = self.acertos / total_predicoes
@@ -171,12 +198,14 @@ class AetheriusML:
 
 ml_engine = AetheriusML()
 
-# --- Modo Sniper com Cronômetro ---
+# ============================================
+# MODO SNIPER
+# ============================================
 class SniperMode:
     def __init__(self):
         self.active = False
         self.trigger_time = None
-        self.window_minutes = None  # 3, 5 ou 10
+        self.window_minutes = None
         self.alertas_cronometro = {5: False, 2: False, 1: False}
         self.sinal_enviado = False
 
@@ -203,7 +232,6 @@ class SniperMode:
         elapsed = datetime.now() - self.trigger_time
         minutos_faltando = self.window_minutes - (elapsed.total_seconds() / 60)
         
-        # Alertas de cronômetro (5, 2, 1 minuto)
         for min_alerta in [5, 2, 1]:
             if min_alerta <= self.window_minutes:
                 if (min_alerta - 0.2) < minutos_faltando <= min_alerta and not self.alertas_cronometro.get(min_alerta, False):
@@ -214,12 +242,10 @@ class SniperMode:
                     )
                     self.alertas_cronometro[min_alerta] = True
         
-        # Sinal de entrada (últimos 10 segundos da janela)
         if -0.2 < minutos_faltando <= 0.1 and not self.sinal_enviado:
             soma_velas = calcular_soma_velas_recentes()
             confianca = self.get_confidence()
             
-            # Determina alvo e proteção baseado na confiança
             if confianca >= 85:
                 alvo = 2.50
                 protecao = 1.60
@@ -243,7 +269,6 @@ class SniperMode:
             self.sinal_enviado = True
             return True
         
-        # Reseta se passou da janela
         if minutos_faltando < -0.5:
             self.active = False
             send_telegram_message(f"✅ *MODO SNIPER FINALIZADO*\n⏱️ Janela de {self.window_minutes} minutos encerrada.")
@@ -252,52 +277,46 @@ class SniperMode:
 
 sniper = SniperMode()
 
-# --- Função principal de análise ---
+# ============================================
+# SIMULAÇÃO DE MULTIPLICADOR
+# ============================================
 def get_current_multiplier():
-    # Simula multiplicador atual
     return round(random.uniform(1.00, 150.00), 2)
 
+# ============================================
+# ANÁLISE E PREDIÇÃO PRINCIPAL
+# ============================================
 def analyze_and_predict():
     current_multiplier = get_current_multiplier()
     numero_rodada = rodada_counter.next_round()
     
-    # Salva no banco de dados
     db.add_rodada(numero_rodada, current_multiplier)
     
-    # Detecção de Vela Gigante (>50x)
     HIGH_MULTIPLIER_THRESHOLD = config.get('high_multiplier_threshold', 50.0)
     
     if current_multiplier >= HIGH_MULTIPLIER_THRESHOLD:
-        # Decide qual janela usar baseado no multiplicador
         if current_multiplier >= 100:
             window = 3
-            confidence = 85
         elif current_multiplier >= 70:
             window = 5
-            confidence = 80
         else:
             window = 10
-            confidence = 75
         
         send_telegram_message(
             f"🚨 *VELA GIGANTE DETECTADA!*\n"
             f"📈 Multiplicador: {current_multiplier}x\n"
-            f"🎯 Ativando MODO SNIPER para {window} minutos\n"
-            f"💎 Confiança esperada: {confidence}%"
+            f"🎯 Ativando MODO SNIPER para {window} minutos"
         )
         sniper.activate(window)
         return
     
-    # Verifica se está em modo sniper
     if sniper.active:
-        resultado = sniper.check_and_alert(numero_rodada)
+        sniper.check_and_alert(numero_rodada)
         return
     
-    # Predição normal (quando não está em sniper)
     rodadas_recentes = db.get_ultimas_rodadas(15)
     confidence = ml_engine.predict(rodadas_recentes)
     
-    # Decide se envia alerta baseado na confiança
     if confidence >= 0.75:
         soma_velas = calcular_soma_velas_recentes()
         alvo = round(2.00 + (confidence - 0.70) * 2, 2)
@@ -314,19 +333,50 @@ def analyze_and_predict():
         )
         send_telegram_message(msg)
 
-# --- Loop Principal ---
+# ============================================
+# SERVIDOR HEALTH CHECK PARA O RENDER
+# ============================================
+def run_health_server():
+    """Mantém o bot vivo no Render"""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'AETHERIUS PREDICTOR ML v4.0 - Bot is running!')
+        
+        def log_message(self, format, *args):
+            pass  # Silencia os logs do health check
+    
+    port = int(os.environ.get('PORT', 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthHandler)
+    server.serve_forever()
+
+# ============================================
+# MAIN
+# ============================================
 def main():
-    print("🚀 Aetherius Predictor ML v4.0 (Aprimorado) iniciado...")
+    print("🚀 AETHERIUS PREDICTOR ML v4.0 (Aprimorado) iniciado...")
     print(f"✅ Bot do Telegram ativo: @betouaviator_bot")
-    print(f"📊 Configurações carregadas: {config}")
+    print(f"📊 Configurações carregadas")
     print("⏳ Aguardando rodadas...\n")
+    
+    # Envia mensagem de boas-vindas
+    send_telegram_message("✅ *AETHERIUS PREDICTOR ML v4.0*\nBot iniciado com sucesso no Render!\n\n🎯 Modo Sniper ativado\n📊 Machine Learning: Markov + Bayes\n⏰ Monitorando rodadas 24/7")
     
     while True:
         analyze_and_predict()
-        # Intervalo entre rodadas (simula tempo real do jogo)
         intervalo = random.uniform(25, 45)
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Aguardando {intervalo:.1f} segundos...")
         time.sleep(intervalo)
 
 if __name__ == "__main__":
+    # Inicia o servidor de health check em uma thread separada
+    import threading
+    health_thread = threading.Thread(target=run_health_server, daemon=True)
+    health_thread.start()
+    
+    # Inicia o bot principal
     main()
