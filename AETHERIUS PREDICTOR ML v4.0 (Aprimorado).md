@@ -43,7 +43,7 @@ python Aetherius_Predictor_ML.py
 
 Edite o arquivo `Aetherius_Predictor_ML.py` e insira suas credenciais do Telegram:
 ```python
-TELEGRAM_BOT_TOKEN = '8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8'
-TELEGRAM_CHAT_ID = '8795312239'
+TELEGRAM_BOT_TOKEN = 'SEU TOKEN AQUI'
+TELEGRAM_CHAT_ID = 'SEU ID AQUI'
 ```
 Os parâmetros de inteligência podem ser ajustados no arquivo `aetherius_brain_config.json`.
