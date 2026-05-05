@@ -1,0 +1,2 @@
+requests
+python-telegram-bot # Se for usar a biblioteca oficial do Telegram

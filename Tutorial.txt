@@ -1,0 +1,78 @@
+Resumo dos arquivos a subir:
+
+Arquivo	Obrigatório?
+Aetherius_Predictor_ML.py	✅ Sim
+requirements.txt	        ✅ Sim
+Dockerfile	                ✅ Sim
+README.md	                ✅ Sim
+.gitignore	                ✅ Sim
+aetherius_brain_config.json	⚠️ Opcional
+
+
+
+Edite as configurações no início do arquivo Aetherius_Predictor_ML.py:
+
+TELEGRAM_BOT_TOKEN = 'seu_token_aqui'
+TELEGRAM_CHAT_ID = 'seu_chat_id_aqui'
+
+
+Execute:
+python Aetherius_Predictor_ML.py
+
+
+
+Deploy com Docker
+docker build -t aetherius-bot .
+docker run -d --restart=always --name aetherius-bot aetherius-bot
+
+
+Configuracao do Telegram
+Abra @BotFather no Telegram
+
+Envie /newbot e escolha um nome
+
+
+Pronto! Parabéns pelo seu novo bot. Você o encontrará em t.me/betouaviator_bot. 
+Agora você pode adicionar uma descrição, uma seção "Sobre" e uma foto de perfil para o seu bot. 
+Consulte /help para obter uma lista de comandos. Aliás, quando terminar de criar seu bot incrível, 
+entre em contato com nosso Suporte de Bots se quiser um nome de usuário melhor para ele. 
+Apenas certifique-se de que o bot esteja totalmente operacional antes de fazer isso.
+
+Use este token para acessar a API HTTP:
+8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8
+Mantenha seu token seguro e guarde-o em local seguro, 
+pois ele pode ser usado por qualquer pessoa para controlar seu bot.
+
+Para obter uma descrição da API de Bots, consulte esta página: https://core.telegram.org/bots/api
+
+
+https://api.telegram.org/bot8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8/getMe
+
+Copie o token gerado
+
+Acesse: https://api.telegram.org/bot8795312239:AAG5O0l_anyQN-3_ED2BZqNTjCSxjuOoqz8/getMe         
+ para descobrir seu Chat ID
+
+
+{"ok":true,"result":{"id":8795312239,
+"is_bot":true,"first_name":"AETHERIUS PREDICTOR ML","username":
+"betouaviator_bot","can_join_groups":true,"can_read_all_group_messages"
+:false,"supports_inline_queries":false,"can_connect_to_business":false,
+"has_main_web_app":false,"has_topics_enabled":false,"allows_users_to_create_topics":false,"can_manage_bots":false}}
+
+id":8795312239
+
+
+🔎 Onde achar o userinfobot
+
+No Telegram faça assim:
+
+Vai na lupa de busca 🔍
+
+Digita:
+
+userinfobot
+Procura por 👉 userinfobot
+Clica nele
+Aperta Start
+
