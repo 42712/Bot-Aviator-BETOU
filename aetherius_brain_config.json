@@ -8,12 +8,9 @@
         "roxa_segundos": 43.67,
         "rosa_segundos": 256.92
     },
-    "melhores_horas": [
-        1,
-        2
-    ],
+    "melhores_horas": [1, 2],
     "padrao_100x": 1,
-    "high_multiplier_threshold": 50.0, 
+    "high_multiplier_threshold": 30.0,
     "sniper_mode_confidence_3min": 85,
     "sniper_mode_confidence_5min": 80,
     "sniper_mode_confidence_10min": 75
