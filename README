@@ -1,0 +1,29 @@
+# AETHERIUS PREDICTOR - Versão com Extensão
+
+## Como funciona?
+
+1. **Extensão** (instalada no Kiwi Browser/Chrome) captura os dados do site `betouaviator.com` em TEMPO REAL
+2. **Servidor** (no Render) recebe os dados via API
+3. **Bot do Telegram** envia alertas quando detecta velas >30x
+
+## Instalação da Extensão no Kiwi Browser
+
+1. Abra o Kiwi Browser
+2. Menu → Extensões
+3. Ative "Modo Desenvolvedor"
+4. Clique em "Carregar extensão não empacotada"
+5. Selecione a pasta com os arquivos `manifest.json` e `extension.js`
+
+## Deploy do Servidor no Render
+
+1. Crie um novo Web Service no Render
+2. Conecte com seu GitHub
+3. Configure:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `python server.py`
+4. Adicione variáveis de ambiente:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+
+## URL da API
+Após o deploy, sua API estará em: `https://seu-app.render.com/api/rodada`
