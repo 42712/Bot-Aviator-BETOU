@@ -60,7 +60,7 @@ class AviatorScraper:
         
         # URLs possíveis para scraping (tente várias fontes)
         self.urls = [
-            "https://www.betou.com/br/aviator",  # Ajuste conforme o site
+            "https://betou.bet.br/games/spribe/aviator",  # Ajuste conforme o site
             "https://aviator-spribe.com/history",  # Site oficial Spribe
             "https://1win.com/aviator",  # Exemplo
         ]
