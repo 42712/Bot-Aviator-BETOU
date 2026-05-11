@@ -2,9 +2,9 @@ import os
 import json
 import time
 import sqlite3
+import re
 import requests
 import threading
-import re
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
@@ -17,7 +17,7 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 if not TELEGRAM_BOT_TOKEN:
     TELEGRAM_BOT_TOKEN = '8795312239:AAF-yVGNQpq90Hs5fAGstj4Wve2-IwrtKBk'
 if not TELEGRAM_CHAT_ID:
-    TELEGRAM_CHAT_ID = '5786799110'
+    TELEGRAM_CHAT_ID = '5786799110'  # SEU ID PESSOAL
 
 print(f"✅ Bot configurado - Chat ID: {TELEGRAM_CHAT_ID}")
 
@@ -46,37 +46,71 @@ def send_telegram_message(message, parse_mode='Markdown', sound_alert=False):
         print(f"[ERRO] {e}")
 
 # ============================================
-# SCRAPER REAL BASEADO NO SEU HTML
+# CARREGAR COOKIES DO ARQUIVO
 # ============================================
-class AviatorRealScraper:
+def carregar_cookies():
+    """Carrega os cookies do arquivo cookies.json"""
+    try:
+        with open('cookies.json', 'r') as f:
+            cookies_dict = json.load(f)
+        
+        # Converte para formato requests
+        cookies = requests.utils.cookiejar_from_dict(cookies_dict)
+        print("✅ Cookies carregados com sucesso!")
+        print(f"   Cookies encontrados: {list(cookies_dict.keys())}")
+        return cookies
+    except FileNotFoundError:
+        print("❌ Arquivo cookies.json não encontrado!")
+        print("   Crie o arquivo com os cookies conforme as instruções.")
+        return None
+    except json.JSONDecodeError:
+        print("❌ Erro ao ler cookies.json - JSON inválido!")
+        return None
+    except Exception as e:
+        print(f"❌ Erro ao carregar cookies: {e}")
+        return None
+
+# ============================================
+# SCRAPER AUTENTICADO
+# ============================================
+class AviatorAuthenticatedScraper:
     def __init__(self):
+        self.session = requests.Session()
+        self.cookies = carregar_cookies()
+        
+        if self.cookies:
+            self.session.cookies.update(self.cookies)
+        
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+            'Referer': 'https://betou.bet.br/games/spribe/aviator',
+            'Origin': 'https://betou.bet.br',
+            'DNT': '1',
+            'Connection': 'keep-alive'
+        }
+        
+        self.url = "https://betou.bet.br/games/spribe/aviator"
         self.ultimo_multiplier = None
         self.ultima_rodada = None
-        self.ultimo_horario = None
-        
-        # URL DO SITE (VOCÊ PRECISA COLOCAR A URL CORRETA)
-        self.url = "# NO SEU CÓDIGO, SUBSTITUA A LINDA DA URL:
-self.url = "https://betou.bet.br/games/spribe/aviator""  # ← AJUSTE AQUI!
         
     def get_real_data(self):
-        """Pega os dados reais do jogo"""
+        """Pega dados usando sessão autenticada via cookies"""
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
-                'Accept-Language': 'pt-BR,pt;q=0.9'
-            }
-            
-            response = requests.get(self.url, headers=headers, timeout=10)
+            response = self.session.get(self.url, headers=self.headers, timeout=10)
             
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # 1 - PEGA O MULTIPLICADOR (classe que você encontrou)
-                multiplier_element = soup.find('div', class_='bubble-multiplier')
-                if multiplier_element:
-                    texto_mult = multiplier_element.text.strip()
-                    numeros = re.findall(r'(\d+\.?\d*)', texto_mult)
+                # PEGA MULTIPLICADOR (classe que você inspecionou)
+                mult_elem = soup.find('div', class_='bubble-multiplier')
+                if not mult_elem:
+                    mult_elem = soup.find('div', {'class': re.compile(r'multiplier', re.I)})
+                
+                if mult_elem:
+                    texto = mult_elem.text.strip()
+                    numeros = re.findall(r'(\d+\.?\d*)', texto)
                     if numeros:
                         multiplier = float(numeros[0])
                     else:
@@ -84,31 +118,37 @@ self.url = "https://betou.bet.br/games/spribe/aviator""  # ← AJUSTE AQUI!
                 else:
                     multiplier = None
                 
-                # 2 - PEGA O NÚMERO DA RODADA
-                rodada_element = soup.find('span', class_='text-uppercase')
-                if rodada_element:
-                    texto_rodada = rodada_element.text.strip()
-                    numeros_rodada = re.findall(r'(\d+)', texto_rodada)
-                    if numeros_rodada:
-                        rodada = int(numeros_rodada[0])
+                # PEGA NÚMERO DA RODADA
+                rodada_elem = soup.find('span', class_='text-uppercase')
+                if not rodada_elem:
+                    rodada_elem = soup.find('span', {'class': re.compile(r'round', re.I)})
+                
+                if rodada_elem:
+                    texto = rodada_elem.text.strip()
+                    numeros = re.findall(r'(\d+)', texto)
+                    if numeros:
+                        rodada = int(numeros[0])
                     else:
                         rodada = None
                 else:
                     rodada = None
                 
-                # 3 - PEGA O HORÁRIO
-                horario_element = soup.find('div', class_='header__info-time')
-                if horario_element:
-                    horario = horario_element.text.strip()
-                else:
-                    horario = None
+                # PEGA HORÁRIO
+                horario_elem = soup.find('div', class_='header__info-time')
+                horario = horario_elem.text.strip() if horario_elem else datetime.now().strftime('%H:%M:%S')
                 
                 return multiplier, rodada, horario
             
-            return None, None, None
-            
+            elif response.status_code == 403:
+                print("❌ Sessão expirada! Faça login novamente e atualize os cookies.")
+                send_telegram_message("⚠️ *SESSÃO EXPIRADA!*\n\nOs cookies venceram. Atualize o arquivo `cookies.json` com novos valores.", parse_mode='Markdown')
+                return None, None, None
+            else:
+                print(f"⚠️ Status inesperado: {response.status_code}")
+                return None, None, None
+                
         except Exception as e:
-            print(f"❌ Erro no scraping: {e}")
+            print(f"❌ Erro na requisição: {e}")
             return None, None, None
 
 # ============================================
@@ -227,14 +267,12 @@ sniper = SniperMode()
 # ============================================
 class RealTimeProcessor:
     def __init__(self):
-        self.ultimo_dado = None
-        self.scraper = AviatorRealScraper()
+        self.scraper = AviatorAuthenticatedScraper()
         self.ultimo_numero_rodada = None
         
     def processar(self):
-        """Loop principal de captura"""
-        print("🚀 Iniciando captura de dados REAIS do Aviator...")
-        print(f"📡 URL alvo: {self.scraper.url}")
+        print("\n🚀 Iniciando captura com AUTENTICAÇÃO VIA COOKIES...")
+        print("📡 Usando cookies da sua sessão logada no Betou")
         print("⏳ Aguardando primeira rodada...\n")
         
         while True:
@@ -242,16 +280,13 @@ class RealTimeProcessor:
                 multiplier, rodada, horario = self.scraper.get_real_data()
                 
                 if multiplier and rodada:
-                    # Se for uma nova rodada
                     if rodada != self.ultimo_numero_rodada:
                         self.ultimo_numero_rodada = rodada
                         
                         print(f"📊 [NOVA RODADA] {rodada} | {multiplier}x | {horario}")
                         
-                        # Salva no banco
                         db.add_rodada(rodada, multiplier, horario)
                         
-                        # Verifica se é vela gigante (>50x)
                         if multiplier >= 50:
                             if multiplier >= 100:
                                 window = 3
@@ -263,15 +298,14 @@ class RealTimeProcessor:
                             msg = f"🟢 *VELA GIGANTE EM TEMPO REAL!*\n📈 {multiplier}x\n🆔 Rodada: {rodada}\n⏰ {horario}\n🎯 Ativando sniper para {window} minutos"
                             send_telegram_message(msg, parse_mode='Markdown')
                             sniper.activate(window, multiplier, rodada, horario)
-                    
-                    # Verifica modo sniper ativo
-                    if sniper.active:
-                        sniper.check_and_alert(rodada)
                 
-                time.sleep(2)  # Verifica a cada 2 segundos
+                if sniper.active:
+                    sniper.check_and_alert(rodada if rodada else 0)
+                
+                time.sleep(2)
                 
             except Exception as e:
-                print(f"❌ Erro: {e}")
+                print(f"❌ Erro no loop: {e}")
                 time.sleep(5)
 
 # ============================================
@@ -283,25 +317,48 @@ def run_health_server():
         def do_GET(self):
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b'AETHERIUS PREDICTOR - Real Time Active!')
+            self.wfile.write(b'AETHERIUS PREDICTOR - Autenticado e Rodando!')
         def log_message(self, format, *args):
             pass
     port = int(os.environ.get('PORT', 10000))
     HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
 
 # ============================================
+# ARQUIVO MODELO DE COOKIES
+# ============================================
+def criar_modelo_cookies():
+    """Cria um arquivo de exemplo para o usuário"""
+    modelo = {
+        "__Host-jwt_token_lax": "COLE_AQUI_O_VALUE",
+        "__Host-jwt_token_none": "COLE_AQUI_O_VALUE", 
+        "__Host-jwt_token_strict": "COLE_AQUI_O_VALUE",
+        "__cf_bm": "COLE_AQUI_O_VALUE"
+    }
+    
+    with open('cookies.json.example', 'w') as f:
+        json.dump(modelo, f, indent=2)
+    
+    print("\n" + "="*60)
+    print("📝 INSTRUÇÕES PARA CRIAR O cookies.json")
+    print("="*60)
+    print("1. Abra o arquivo 'cookies.json.example'")
+    print("2. Substitua 'COLE_AQUI_O_VALUE' pelos valores reais")
+    print("3. Salve como 'cookies.json'")
+    print("="*60 + "\n")
+
+# ============================================
 # MENSAGEM DE BOAS-VINDAS
 # ============================================
 def send_welcome():
     msg = (
-        "🎰 *AETHERIUS PREDICTOR v4.0 - TEMPO REAL* 🎰\n\n"
+        "🎰 *AETHERIUS PREDICTOR v4.0 - AUTENTICADO* 🎰\n\n"
         "✅ Bot iniciado com SUCESSO!\n"
-        "📡 Capturando dados REAIS via Web Scraping\n"
+        "🔐 Usando cookies da sua conta Betou\n"
+        "📡 Capturando dados em TEMPO REAL\n"
         "🎯 Modo Sniper ativado (velas >50x)\n"
         "🔊 Alerta sonoro na entrada confirmada\n"
         "⏰ Monitoramento 24/7\n\n"
-        "📊 *Aguardando primeira rodada...*\n\n"
-        "Boa sorte! 🍀"
+        "🟢 *Aguardando dados do jogo...*"
     )
     send_telegram_message(msg, parse_mode='Markdown')
 
@@ -309,16 +366,20 @@ def send_welcome():
 # MAIN
 # ============================================
 def main():
-    print("=" * 60)
-    print("🎰 AETHERIUS PREDICTOR v4.0 - SCRAPING REAL 🎰")
-    print("=" * 60)
-    print(f"✅ Chat ID: {TELEGRAM_CHAT_ID}")
-    print("✅ Modo: CAPTURA DE DADOS REAIS")
-    print("✅ Classe do Multiplicador: bubble-multiplier")
-    print("✅ Classe da Rodada: text-uppercase")
-    print("=" * 60)
+    print("="*60)
+    print("🎰 AETHERIUS PREDICTOR - MODO AUTENTICADO 🎰")
+    print("="*60)
     
-    send_welcome()
+    criar_modelo_cookies()
+    
+    # Verifica se o arquivo de cookies existe
+    if not os.path.exists('cookies.json'):
+        print("❌ Arquivo 'cookies.json' não encontrado!")
+        print("📝 Siga as instruções acima para criar o arquivo.")
+        send_telegram_message("⚠️ *CONFIGURAÇÃO NECESSÁRIA*\n\nCrie o arquivo `cookies.json` com os cookies da sua sessão logada no Betou.", parse_mode='Markdown')
+        # Mesmo sem cookies, tenta continuar (vai falhar)
+    else:
+        send_welcome()
     
     processor = RealTimeProcessor()
     processor.processar()
