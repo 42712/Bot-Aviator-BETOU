@@ -22,7 +22,7 @@ if not TELEGRAM_BOT_TOKEN:
 if not TELEGRAM_CHAT_ID:
     print("❌ ERRO FATAL: TELEGRAM_CHAT_ID não configurado!")
     print("Configure a variável de ambiente no Render.")
-    TELEGRAM_CHAT_ID = '8795312239'
+    TELEGRAM_CHAT_ID = '5786799110'
 
 print(f"✅ Bot configurado com token: {TELEGRAM_BOT_TOKEN[:20]}...")
 print(f"✅ Chat ID: {TELEGRAM_CHAT_ID}")
