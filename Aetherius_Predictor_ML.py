@@ -55,7 +55,8 @@ class AviatorRealScraper:
         self.ultimo_horario = None
         
         # URL DO SITE (VOCÊ PRECISA COLOCAR A URL CORRETA)
-        self.url = "https://betou.bet.br/games/spribe/aviator"  # ← AJUSTE AQUI!
+        self.url = "# NO SEU CÓDIGO, SUBSTITUA A LINDA DA URL:
+self.url = "https://betou.bet.br/games/spribe/aviator""  # ← AJUSTE AQUI!
         
     def get_real_data(self):
         """Pega os dados reais do jogo"""
