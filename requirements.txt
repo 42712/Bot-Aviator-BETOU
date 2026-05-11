@@ -1,6 +1,0 @@
-requests
-beautifulsoup4
-flask
-flask-cors
-websocket-client
-urllib3
