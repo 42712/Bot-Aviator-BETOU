@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Aetherius Predictor - Betou",
+  "version": "2.0",
+  "description": "Captura rodadas do Aviator em tempo real - Modo Sniper",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://betouaviator.com/*",
+    "https://*.onrender.com/*",
+    "https://*.render.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://betouaviator.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Aetherius Predictor"
+  }
+}

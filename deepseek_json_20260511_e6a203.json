@@ -1,0 +1,6 @@
+{
+    "high_multiplier_threshold": 30.0,
+    "sniper_mode_confidence_3min": 85,
+    "sniper_mode_confidence_5min": 80,
+    "sniper_mode_confidence_10min": 75
+}

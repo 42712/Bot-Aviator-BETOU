@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 260px;
+            padding: 16px;
+            font-family: Arial;
+            background: #0f0c29;
+            color: white;
+            text-align: center;
+        }
+        h3 { color: #00ff88; margin: 0 0 10px 0; }
+        .status { background: #1a1a2e; padding: 10px; border-radius: 8px; margin: 10px 0; }
+        .online { color: #00ff88; }
+        button {
+            background: #00ff88;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        .footer { font-size: 10px; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h3>🎯 AETHERIUS</h3>
+    <div class="status">
+        🟢 <span class="online">ATIVO</span><br>
+        Monitorando betouaviator.com
+    </div>
+    <button id="test">Testar</button>
+    <div class="footer">Modo Sniper >30x</div>
+    <script>
+        document.getElementById('test').addEventListener('click', () => {
+            fetch('https://SEU-APP.onrender.com/api/status')
+                .then(res => res.json())
+                .then(data => alert('✅ Conectado! Rodadas: ' + data.total_rodadas))
+                .catch(() => alert('❌ Servidor offline'));
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+console.log("Aetherius Predictor - Background ativo");
