@@ -4,12 +4,9 @@ import time
 import sqlite3
 import requests
 import threading
+import re
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-import urllib3
-
-# Desabilitar avisos SSL (se necessário)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ============================================
 # CONFIGURAÇÕES DO TELEGRAM
@@ -49,143 +46,72 @@ def send_telegram_message(message, parse_mode='Markdown', sound_alert=False):
         print(f"[ERRO] {e}")
 
 # ============================================
-# WEBSCRAPING PARA PEGAR DADOS REAIS DO AVIATOR
+# SCRAPER REAL BASEADO NO SEU HTML
 # ============================================
-class AviatorScraper:
+class AviatorRealScraper:
     def __init__(self):
-        self.ultimo_multiplier = 1.00
-        self.ultima_rodada = 0
-        self.historico = []
-        self.rodadas_velhas = set()
+        self.ultimo_multiplier = None
+        self.ultima_rodada = None
+        self.ultimo_horario = None
         
-        # URLs possíveis para scraping (tente várias fontes)
-        self.urls = [
-            "https://betou.bet.br/games/spribe/aviator",  # Ajuste conforme o site
-            "https://aviator-spribe.com/history",  # Site oficial Spribe
-            "https://1win.com/aviator",  # Exemplo
-        ]
+        # URL DO SITE (VOCÊ PRECISA COLOCAR A URL CORRETA)
+        self.url = "https://betouaviator.com/play/aviator"  # ← AJUSTE AQUI!
         
-    def get_multiplier_websocket(self):
-        """Tenta pegar via WebSocket (mais preciso)"""
-        try:
-            import websocket
-            import json as jsonlib
-            
-            # WebSocket do jogo (exemplo - precisa do endpoint correto)
-            ws_url = "wss://api.spribe.io/aviator/ws"
-            ws = websocket.create_connection(ws_url, timeout=5)
-            
-            # Envia mensagem de subscribe
-            subscribe_msg = jsonlib.dumps({"event": "subscribe", "channel": "round"})
-            ws.send(subscribe_msg)
-            
-            # Recebe dados
-            result = ws.recv()
-            data = jsonlib.loads(result)
-            ws.close()
-            
-            if 'multiplier' in data:
-                return float(data['multiplier']), data.get('round_id', 0)
-        except:
-            pass
-        return None, None
-    
-    def get_multiplier_api(self):
-        """Tenta pegar via API pública"""
-        apis = [
-            "https://api.spribe.io/api/v1/aviator/last",
-            "https://aviator-api.betano.com/last_round",
-            "https://api.1win.com/aviator/history/last"
-        ]
-        
-        for api in apis:
-            try:
-                response = requests.get(api, timeout=3, headers={
-                    'User-Agent': 'Mozilla/5.0',
-                    'Accept': 'application/json'
-                })
-                if response.status_code == 200:
-                    data = response.json()
-                    # Tenta encontrar o multiplicador em diferentes formatos
-                    mult = data.get('multiplier') or data.get('result') or data.get('value')
-                    rodada = data.get('round_id') or data.get('id') or data.get('game_id')
-                    if mult:
-                        return float(mult), rodada
-            except:
-                continue
-        return None, None
-    
-    def get_multiplier_html(self):
-        """Tenta pegar via HTML scraping"""
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        
-        for url in self.urls:
-            try:
-                response = requests.get(url, headers=headers, timeout=5, verify=False)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    
-                    # Padrões comuns de multiplicador no HTML
-                    seletores = [
-                        '.multiplier', '.crash-value', '.current-multiplier',
-                        '[data-testid="multiplier"]', '.game-result',
-                        'div:contains("x")', 'span:contains("x")'
-                    ]
-                    
-                    for seletor in seletores:
-                        try:
-                            elemento = soup.select_one(seletor)
-                            if elemento:
-                                texto = elemento.text.strip()
-                                # Extrai número do texto (ex: "2.35x" -> 2.35)
-                                import re
-                                numeros = re.findall(r'(\d+\.?\d*)', texto)
-                                if numeros:
-                                    mult = float(numeros[0])
-                                    return mult, 0
-                        except:
-                            continue
-            except:
-                continue
-        return None, None
-    
     def get_real_data(self):
-        """Tenta todas as fontes para pegar dados reais"""
-        # Tenta WebSocket primeiro
-        mult, rodada = self.get_multiplier_websocket()
-        if mult:
-            return mult, rodada
-        
-        # Depois API
-        mult, rodada = self.get_multiplier_api()
-        if mult:
-            return mult, rodada
-        
-        # Por último HTML
-        mult, rodada = self.get_multiplier_html()
-        if mult:
-            return mult, rodada
-        
-        # Se nada funcionar, retorna None
-        return None, None
-    
-    def monitorar_tempo_real(self, callback):
-        """Monitora em loop infinito chamando callback quando muda"""
-        ultimo_valor = None
-        
-        while True:
-            mult, rodada = self.get_real_data()
+        """Pega os dados reais do jogo"""
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+                'Accept-Language': 'pt-BR,pt;q=0.9'
+            }
             
-            if mult and mult != ultimo_valor:
-                ultimo_valor = mult
-                callback(mult, rodada, datetime.now())
+            response = requests.get(self.url, headers=headers, timeout=10)
             
-            time.sleep(2)  # Verifica a cada 2 segundos
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # 1 - PEGA O MULTIPLICADOR (classe que você encontrou)
+                multiplier_element = soup.find('div', class_='bubble-multiplier')
+                if multiplier_element:
+                    texto_mult = multiplier_element.text.strip()
+                    numeros = re.findall(r'(\d+\.?\d*)', texto_mult)
+                    if numeros:
+                        multiplier = float(numeros[0])
+                    else:
+                        multiplier = None
+                else:
+                    multiplier = None
+                
+                # 2 - PEGA O NÚMERO DA RODADA
+                rodada_element = soup.find('span', class_='text-uppercase')
+                if rodada_element:
+                    texto_rodada = rodada_element.text.strip()
+                    numeros_rodada = re.findall(r'(\d+)', texto_rodada)
+                    if numeros_rodada:
+                        rodada = int(numeros_rodada[0])
+                    else:
+                        rodada = None
+                else:
+                    rodada = None
+                
+                # 3 - PEGA O HORÁRIO
+                horario_element = soup.find('div', class_='header__info-time')
+                if horario_element:
+                    horario = horario_element.text.strip()
+                else:
+                    horario = None
+                
+                return multiplier, rodada, horario
+            
+            return None, None, None
+            
+        except Exception as e:
+            print(f"❌ Erro no scraping: {e}")
+            return None, None, None
 
 # ============================================
-# BANCO DE DADOS LOCAL
+# BANCO DE DADOS
 # ============================================
 class Database:
     def __init__(self):
@@ -196,22 +122,22 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 numero_rodada INTEGER,
                 multiplicador REAL,
-                timestamp DATETIME,
-                recebido_em DATETIME
+                horario TEXT,
+                timestamp DATETIME
             )
         ''')
         self.conn.commit()
 
-    def add_rodada(self, numero_rodada, multiplicador):
+    def add_rodada(self, numero_rodada, multiplicador, horario):
         self.cursor.execute('''
-            INSERT INTO rodadas (numero_rodada, multiplicador, timestamp, recebido_em)
+            INSERT INTO rodadas (numero_rodada, multiplicador, horario, timestamp)
             VALUES (?, ?, ?, ?)
-        ''', (numero_rodada, multiplicador, datetime.now(), datetime.now()))
+        ''', (numero_rodada, multiplicador, horario, datetime.now()))
         self.conn.commit()
 
     def get_ultimas_rodadas(self, limit=20):
         self.cursor.execute('''
-            SELECT multiplicador, timestamp FROM rodadas ORDER BY id DESC LIMIT ?
+            SELECT multiplicador FROM rodadas ORDER BY id DESC LIMIT ?
         ''', (limit,))
         return self.cursor.fetchall()
 
@@ -228,14 +154,13 @@ class SniperMode:
         self.alertas_cronometro = {3: False, 2: False, 1: False}
         self.sinal_enviado = False
 
-    def activate(self, window_minutes, multiplicador, numero_rodada):
+    def activate(self, window_minutes, multiplicador, numero_rodada, horario):
         self.active = True
         self.trigger_time = datetime.now()
         self.window_minutes = window_minutes
         self.alertas_cronometro = {3: False, 2: False, 1: False}
         self.sinal_enviado = False
         
-        hora_atual = datetime.now().strftime('%H:%M:%S')
         data_atual = datetime.now().strftime('%d/%m/%Y')
         
         msg = (
@@ -244,7 +169,7 @@ class SniperMode:
             f"🆔 *Rodada:* {numero_rodada}\n"
             f"⏱️ *Janela:* {window_minutes} minutos\n"
             f"📅 *Data:* {data_atual}\n"
-            f"⏰ *Hora:* {hora_atual}\n\n"
+            f"⏰ *Hora da Vela:* {horario}\n\n"
             f"⏳ *Próximos alertas:* 3min, 2min, 1min"
         )
         send_telegram_message(msg, parse_mode='Markdown')
@@ -252,24 +177,21 @@ class SniperMode:
     def get_confidence(self):
         return 85 if self.window_minutes == 3 else 80 if self.window_minutes == 5 else 75
     
-    def check_and_alert(self, numero_rodada):
+    def check_and_alert(self, numero_rodada_atual):
         if not self.active or self.sinal_enviado:
             return None
         
         elapsed = datetime.now() - self.trigger_time
         minutos_faltando = self.window_minutes - (elapsed.total_seconds() / 60)
         
-        # Alertas progressivos
         for min_alerta in [3, 2, 1]:
             if min_alerta <= self.window_minutes:
                 if minutos_faltando <= min_alerta and minutos_faltando > (min_alerta - 0.3) and not self.alertas_cronometro.get(min_alerta, False):
-                    msg = f"⏰ *ALERTA PROGRESSIVO*\n⏳ Faltam {min_alerta} minuto(s)!\n🎯 Prepare-se!"
+                    msg = f"⏰ *ALERTA PROGRESSIVO*\n⏳ Faltam {min_alerta} minuto(s)!\n🎯 Prepare o cashout automático!"
                     send_telegram_message(msg, parse_mode='Markdown')
                     self.alertas_cronometro[min_alerta] = True
         
-        # Entrada confirmada
         if minutos_faltando <= 0.05 and not self.sinal_enviado:
-            # Pega soma das últimas velas
             rodadas = db.get_ultimas_rodadas(10)
             soma_velas = sum(r[0] for r in rodadas if r[0] < 50) if rodadas else 15
             confianca = self.get_confidence()
@@ -280,7 +202,7 @@ class SniperMode:
             
             msg = (
                 f"🚀 *AETHERIUS PREDICTOR: ENTRADA CONFIRMADA!* 🚀\n\n"
-                f"🎯 *Entrar AGORA:* {numero_rodada}\n"
+                f"🎯 *Entrar AGORA:* {numero_rodada_atual}\n"
                 f"            *{hora_atual}*\n\n"
                 f"📊 *Soma de Velas Recente:* {soma_velas:.0f}\n"
                 f"🎯 *Alvo Sugerido:* {alvo}x\n"
@@ -300,60 +222,59 @@ class SniperMode:
 sniper = SniperMode()
 
 # ============================================
-# PROCESSADOR DE DADOS EM TEMPO REAL
+# PROCESSADOR PRINCIPAL
 # ============================================
 class RealTimeProcessor:
     def __init__(self):
-        self.ultimo_mult = 0
-        self.ultimo_numero = 0
-        self.scraper = AviatorScraper()
+        self.ultimo_dado = None
+        self.scraper = AviatorRealScraper()
+        self.ultimo_numero_rodada = None
         
-    def on_new_data(self, multiplier, round_id, timestamp):
-        """Callback chamada quando chega dado novo"""
-        print(f"📊 NOVO DADO REAL: {multiplier}x | Rodada: {round_id} | {timestamp.strftime('%H:%M:%S')}")
-        
-        # Salva no banco
-        db.add_rodada(round_id, multiplier)
-        
-        # Verifica se é vela gigante (>50x)
-        if multiplier >= 50:
-            if multiplier >= 100:
-                window = 3
-            elif multiplier >= 70:
-                window = 5
-            else:
-                window = 10
-            
-            msg = f"🟢 *VELA GIGANTE EM TEMPO REAL!*\n📈 {multiplier}x\n🎯 Ativando sniper para {window} minutos"
-            send_telegram_message(msg, parse_mode='Markdown')
-            sniper.activate(window, multiplier, round_id)
-        
-        # Verifica modo sniper
-        if sniper.active:
-            sniper.check_and_alert(round_id)
-    
-    def start(self):
-        """Inicia o monitoramento em tempo real"""
-        print("🚀 Iniciando monitoramento em TEMPO REAL...")
-        print("⏳ Aguardando dados do Aviator...")
+    def processar(self):
+        """Loop principal de captura"""
+        print("🚀 Iniciando captura de dados REAIS do Aviator...")
+        print(f"📡 URL alvo: {self.scraper.url}")
+        print("⏳ Aguardando primeira rodada...\n")
         
         while True:
             try:
-                mult, rodada = self.scraper.get_real_data()
+                multiplier, rodada, horario = self.scraper.get_real_data()
                 
-                if mult and mult != self.ultimo_mult:
-                    self.ultimo_mult = mult
-                    self.ultimo_numero = rodada if rodada else self.ultimo_numero + 1
-                    self.on_new_data(mult, self.ultimo_numero, datetime.now())
+                if multiplier and rodada:
+                    # Se for uma nova rodada
+                    if rodada != self.ultimo_numero_rodada:
+                        self.ultimo_numero_rodada = rodada
+                        
+                        print(f"📊 [NOVA RODADA] {rodada} | {multiplier}x | {horario}")
+                        
+                        # Salva no banco
+                        db.add_rodada(rodada, multiplier, horario)
+                        
+                        # Verifica se é vela gigante (>50x)
+                        if multiplier >= 50:
+                            if multiplier >= 100:
+                                window = 3
+                            elif multiplier >= 70:
+                                window = 5
+                            else:
+                                window = 10
+                            
+                            msg = f"🟢 *VELA GIGANTE EM TEMPO REAL!*\n📈 {multiplier}x\n🆔 Rodada: {rodada}\n⏰ {horario}\n🎯 Ativando sniper para {window} minutos"
+                            send_telegram_message(msg, parse_mode='Markdown')
+                            sniper.activate(window, multiplier, rodada, horario)
+                    
+                    # Verifica modo sniper ativo
+                    if sniper.active:
+                        sniper.check_and_alert(rodada)
                 
-                time.sleep(3)  # Verifica a cada 3 segundos
+                time.sleep(2)  # Verifica a cada 2 segundos
                 
             except Exception as e:
-                print(f"❌ Erro no monitoramento: {e}")
+                print(f"❌ Erro: {e}")
                 time.sleep(5)
 
 # ============================================
-# HEALTH CHECK PARA RENDER
+# HEALTH CHECK
 # ============================================
 def run_health_server():
     from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -361,42 +282,46 @@ def run_health_server():
         def do_GET(self):
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b'AETHERIUS PREDICTOR - Real Time Data Active!')
+            self.wfile.write(b'AETHERIUS PREDICTOR - Real Time Active!')
         def log_message(self, format, *args):
             pass
     port = int(os.environ.get('PORT', 10000))
     HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
 
 # ============================================
+# MENSAGEM DE BOAS-VINDAS
+# ============================================
+def send_welcome():
+    msg = (
+        "🎰 *AETHERIUS PREDICTOR v4.0 - TEMPO REAL* 🎰\n\n"
+        "✅ Bot iniciado com SUCESSO!\n"
+        "📡 Capturando dados REAIS via Web Scraping\n"
+        "🎯 Modo Sniper ativado (velas >50x)\n"
+        "🔊 Alerta sonoro na entrada confirmada\n"
+        "⏰ Monitoramento 24/7\n\n"
+        "📊 *Aguardando primeira rodada...*\n\n"
+        "Boa sorte! 🍀"
+    )
+    send_telegram_message(msg, parse_mode='Markdown')
+
+# ============================================
 # MAIN
 # ============================================
 def main():
-    print("=" * 50)
-    print("🎰 AETHERIUS PREDICTOR v4.0 - TEMPO REAL 🎰")
-    print("=" * 50)
+    print("=" * 60)
+    print("🎰 AETHERIUS PREDICTOR v4.0 - SCRAPING REAL 🎰")
+    print("=" * 60)
     print(f"✅ Chat ID: {TELEGRAM_CHAT_ID}")
-    print("✅ Modo: CAPTURA EM TEMPO REAL")
-    print("✅ Fonte: WebSocket/API/HTML")
-    print("=" * 50)
+    print("✅ Modo: CAPTURA DE DADOS REAIS")
+    print("✅ Classe do Multiplicador: bubble-multiplier")
+    print("✅ Classe da Rodada: text-uppercase")
+    print("=" * 60)
     
-    # Mensagem de boas-vindas
-    send_telegram_message(
-        "🎰 *AETHERIUS PREDICTOR v4.0 - TEMPO REAL* 🎰\n\n"
-        "✅ Bot iniciado!\n"
-        "📡 Capturando dados REAIS do Aviator\n"
-        "🎯 Modo Sniper ativado\n"
-        "🔊 Alerta sonoro na entrada\n"
-        "⏰ Monitoramento 24/7\n\n"
-        "🟢 *Aguardando primeira vela...*",
-        parse_mode='Markdown'
-    )
+    send_welcome()
     
-    # Inicia processador em tempo real
     processor = RealTimeProcessor()
-    processor.start()
+    processor.processar()
 
 if __name__ == "__main__":
-    # Inicia health check em thread separada
     threading.Thread(target=run_health_server, daemon=True).start()
-    # Inicia bot principal
     main()
